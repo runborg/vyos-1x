@@ -226,10 +226,7 @@ def make_node_def(props):
         node_def += "syntax:expression: {0}\n".format(props["constraint"])
 
     if "owner" in props:
-        if "tag" in props:
-            node_def += "end: sudo sh -c \"VALUE='$VAR(@)' {0}\"\n".format(props["owner"])
-        else:
-            node_def += "end: sudo sh -c \"{0}\"\n".format(props["owner"])
+        node_def += "end: sudo sh -c \"{0}\"\n".format(props["owner"])
 
     if debug:
         print("The contents of the node.def file:\n", node_def)
