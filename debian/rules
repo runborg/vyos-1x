@@ -12,6 +12,11 @@ MIGRATION_SCRIPTS_DIR := /opt/vyatta/etc/config-migrate/migrate/
 SYSTEM_SCRIPTS_DIR := usr/libexec/vyos/system
 SERVICES_DIR := usr/libexec/vyos/services
 
+VERSION := $(shell git describe --tags --match 'vyos/*' --dirty | sed -E -n 's~vyos/([0-9.]+)(-[0-9]+-g[0-9a-zA-Z-]+)?$$~\1\2~p')
+ifdef VERSION
+VERSION_STR := -v$(VERSION)
+endif
+
 %:
 	dh $@ --with python3, --with quilt
 
@@ -77,3 +82,6 @@ override_dh_auto_install:
 	# Install systemd service units
 	mkdir -p $(DIR)/lib/systemd/system
 	cp -r src/systemd/* $(DIR)/lib/systemd/system
+
+override_dh_gencontrol:
+	dh_gencontrol -- $(VERSION_STR)
