@@ -1,0 +1,85 @@
+router rip
+{%-if default_distance%}
+  distance {{default_distance}}
+{%-endif %}
+{%-if default_originate %}
+  default-information originate
+{%-endif %}
+{%-if rip.default_metric %}
+  default-metric {{rip.default_metric}}
+{%-endif %}
+{%-for protocol in rip.redist %}
+{%-if rip.redist[protocol]['metric'] and rip.redist[protocol]['route_map'] %}
+  redistribute {{protocol}} metric {{rip.redist[protocol]['metric']}} route-map {{rip.redist[protocol]['route_map']}}
+{%-elif rip.redist[protocol]['metric'] %}
+  redistribute {{protocol}} metric {{rip.redist[protocol]['metric']}}
+{%-elif rip.redist[protocol]['route_map'] %}
+  redistribute {{protocol}} route-map {{rip.redist[protocol]['route_map']}}
+{%-else %}
+  redistribute {{protocol}}
+{%-endif %}
+{%-endfor %}
+
+{%-for iface in rip.distribute %}
+{%-if rip.distribute[iface].iface_access_list_in %}
+  distribute-list {{rip.distribute[iface].iface_access_list_in}} in {{iface}}
+{%-endif %}
+{%-if rip.distribute[iface].iface_access_list_out %}
+  distribute-list {{rip.distribute[iface].iface_access_list_out}} out {{iface}}
+{%-endif %}
+{%-if rip.distribute[iface].iface_prefix_list_in %}
+  distribute-list prefix {{rip.distribute[iface].iface_prefix_list_in}} in {{iface}}
+{%-endif %}
+{%-if rip.distribute[iface].iface_prefix_list_out %}
+  distribute-list prefix {{rip.distribute[iface].iface_prefix_list_out}} out {{iface}}
+{%-endif %}
+{%-endfor %}
+
+{%-if rip.dist_acl_in %}
+  distribute-list {{rip.dist_acl_in}} in
+{%-endif %}
+
+{%-if rip.dist_acl_out %}
+  distribute-list {{rip.dist_acl_out}} out
+{%-endif %}
+
+{%-if rip.dist_prfx_in %}
+  distribute-list prefix {{rip.dist_prfx_in}} in
+{%-endif %}
+
+{%-if rip.dist_prfx_out %}
+  distribute-list prefix {{rip.dist_prfx_out}} out
+{%-endif %}
+
+{%-for network in rip.networks %}
+  network {{network}}
+{%-endfor %}
+
+{%-for iface in rip.ifaces %}
+  network {{iface}}
+{%-endfor %}
+
+{%-for neighbor in rip.neighbors %}
+  neighbor {{neighbor}}
+{%-endfor %}
+
+{%-for net in rip.net_distance %}
+{%-if rip.net_distance[net].access_list and rip.net_distance[net].distance -%}
+  distance {{rip.net_distance[net].distance}} {{net}} {{rip.net_distance[net].access_list}} 
+{%-else %}
+  distance {{rip.net_distance[net].distance}} {{net}} 
+{%-endif %}
+{%-endfor %}
+
+{%-for passive_iface in rip.passive_iface %}
+  passive-interface {{passive_iface}}
+{%-endfor %}
+
+{%-for route in rip.route %}
+  route {{route}}
+{%-endfor %}
+
+{%-if rip.timer_update or rip.timer_timeout or rip.timer_garbage %}
+  timers basic {{rip.timer_update}} {{rip.timer_timeout}} {{rip.timer_garbage}}
+{%-endif %}
+!
