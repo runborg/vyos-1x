@@ -35,20 +35,6 @@ def get_config():
         'rip_conf'          : False,
         'default_distance'  : [],
         'default_originate' : False,
-        'old_rip'  : {
-            'default_metric'  : [],
-            'distribute'      : {},
-            'neighbors'       : {},
-            'networks'        : {},
-            'net_distance'    : {},
-            'passive_iface'   : {},
-            'redist'          : {},
-            'route'           : {},
-            'ifaces'          : {},
-            'timer_garbage'   : 120,
-            'timer_timeout'   : 180,
-            'timer_update'    : 30
-        },
         'rip'  : {
             'default_metric'   : None,
             'distribute'       : {},
@@ -74,51 +60,16 @@ def get_config():
     conf.set_level(base)
 
     # Get default distance
-    if conf.exists_effective('default-distance'):
-        rip_conf['old_default_distance'] = conf.return_effective_value('default-distance')
-
     if conf.exists('default-distance'):
         rip_conf['default_distance'] = conf.return_value('default-distance')
 
     # Get default information originate (originate default route)
-    if conf.exists_effective('default-information originate'):
-        rip_conf['old_default_originate'] = True
-
     if conf.exists('default-information originate'):
         rip_conf['default_originate'] = True
 
     # Get default-metric
-    if conf.exists_effective('default-metric'):
-        rip_conf['old_rip']['default_metric'] = conf.return_effective_value('default-metric')
-
     if conf.exists('default-metric'):
         rip_conf['rip']['default_metric'] = conf.return_value('default-metric')
-
-    # Get distribute list interface old_rip
-    for dist_iface in conf.list_effective_nodes('distribute-list interface'):
-        # Set level 'distribute-list interface ethX'
-        conf.set_level((str(base)) + ' distribute-list interface ' + dist_iface)
-        rip_conf['rip']['distribute'].update({
-        dist_iface : {
-            'iface_access_list_in': conf.return_effective_value('access-list in'.format(dist_iface)),
-            'iface_access_list_out': conf.return_effective_value('access-list out'.format(dist_iface)),
-            'iface_prefix_list_in': conf.return_effective_value('prefix-list in'.format(dist_iface)),
-            'iface_prefix_list_out': conf.return_effective_value('prefix-list out'.format(dist_iface))
-            }
-        })
-
-        # Access-list in old_rip
-        if conf.exists_effective('access-list in'.format(dist_iface)):
-            rip_conf['old_rip']['iface_access_list_in'] = conf.return_effective_value('access-list in'.format(dist_iface))
-        # Access-list out old_rip
-        if conf.exists_effective('access-list out'.format(dist_iface)):
-            rip_conf['old_rip']['iface_access_list_out'] = conf.return_effective_value('access-list out'.format(dist_iface))
-        # Prefix-list in old_rip
-        if conf.exists_effective('prefix-list in'.format(dist_iface)):
-            rip_conf['old_rip']['iface_prefix_list_in'] = conf.return_effective_value('prefix-list in'.format(dist_iface))
-        # Prefix-list out old_rip
-        if conf.exists_effective('prefix-list out'.format(dist_iface)):
-            rip_conf['old_rip']['iface_prefix_list_out'] = conf.return_effective_value('prefix-list out'.format(dist_iface))
 
     conf.set_level(base)
 
@@ -151,64 +102,34 @@ def get_config():
     conf.set_level((str(base)) + ' distribute-list')
 
     # Get distribute list, access-list in
-    if conf.exists_effective('access-list in'):
-        rip_conf['old_rip']['dist_acl_in'] = conf.return_effective_value('access-list in')
-
     if conf.exists('access-list in'):
         rip_conf['rip']['dist_acl_in'] = conf.return_value('access-list in')
 
     # Get distribute list, access-list out
-    if conf.exists_effective('access-list out'):
-        rip_conf['old_rip']['dist_acl_out'] = conf.return_effective_value('access-list out')
-
     if conf.exists('access-list out'):
         rip_conf['rip']['dist_acl_out'] = conf.return_value('access-list out')
 
     # Get ditstribute list, prefix-list in
-    if conf.exists_effective('prefix-list in'):
-        rip_conf['old_rip']['dist_prfx_in'] = conf.return_effective_value('prefix-list in')
-
     if conf.exists('prefix-list in'):
         rip_conf['rip']['dist_prfx_in'] = conf.return_value('prefix-list in')
 
     # Get distribute list, prefix-list out
-    if conf.exists_effective('prefix-list out'):
-        rip_conf['old_rip']['dist_prfx_out'] = conf.return_effective_value('prefix-list out')
-
     if conf.exists('prefix-list out'):
         rip_conf['rip']['dist_prfx_out'] = conf.return_value('prefix-list out')
 
     conf.set_level(base)
 
     # Get network Interfaces
-    if conf.exists_effective('interface'):
-        rip_conf['old_rip']['ifaces'] = conf.return_effective_values('interface')
-
     if conf.exists('interface'):
         rip_conf['rip']['ifaces'] = conf.return_values('interface')
 
     # Get neighbors
-    if conf.exists_effective('neighbor'):
-        rip_conf['old_rip']['neighbors'] = conf.return_effective_values('neighbor')
-
     if conf.exists('neighbor'):
         rip_conf['rip']['neighbors'] = conf.return_values('neighbor')
 
     # Get networks
-    if conf.exists_effective('network'):
-        rip_conf['old_rip']['networks'] = conf.return_effective_values('network')
-
     if conf.exists('network'):
         rip_conf['rip']['networks'] = conf.return_values('network')
-
-    # Get network-distance old_rip
-    for net_dist in conf.list_effective_nodes('network-distance'):
-        rip_conf['old_rip']['net_distance'].update({
-            net_dist : {
-                'access_list' : conf.return_effective_value('network-distance {0} access-list'.format(net_dist)),
-                'distance' : conf.return_effective_value('network-distance {0} distance'.format(net_dist)),
-            }
-        })
 
     # Get network-distance
     for net_dist in conf.list_nodes('network-distance'):
@@ -219,21 +140,8 @@ def get_config():
             }
         })
 
-    # Get passive-interface
-    if conf.exists_effective('passive-interface'):
-        rip_conf['old_rip']['passive_iface'] = conf.return_effective_values('passive-interface')
-
     if conf.exists('passive-interface'):
         rip_conf['rip']['passive_iface'] = conf.return_values('passive-interface')
-
-    # Get redistribute for old_rip
-    for protocol in conf.list_effective_nodes('redistribute'):
-        rip_conf['old_rip']['redist'].update({
-            protocol : {
-                'metric' : conf.return_effective_value('redistribute {0} metric'.format(protocol)),
-                'route_map' : conf.return_effective_value('redistribute {0} route-map'.format(protocol)),
-            }
-        })
 
     # Get redistribute
     for protocol in conf.list_nodes('redistribute'):
@@ -247,30 +155,18 @@ def get_config():
     conf.set_level(base)
 
     # Get route
-    if conf.exists_effective('route'):
-        rip_conf['old_rip']['route'] = conf.return_effective_values('route')
-
     if conf.exists('route'):
         rip_conf['rip']['route'] = conf.return_values('route')
 
     # Get timers garbage
-    if conf.exists_effective('timers garbage-collection'):
-        rip_conf['old_rip']['timer_garbage'] = conf.return_effective_value('timers garbage-collection')
-
     if conf.exists('timers garbage-collection'):
         rip_conf['rip']['timer_garbage'] = conf.return_value('timers garbage-collection')
 
     # Get timers timeout
-    if conf.exists_effective('timers timeout'):
-        rip_conf['old_rip']['timer_timeout'] = conf.return_effective_value('timers timeout')
-
     if conf.exists('timers timeout'):
         rip_conf['rip']['timer_timeout'] = conf.return_value('timers timeout')
 
     # Get timers update
-    if conf.exists_effective('timers update'):
-        rip_conf['old_rip']['timer_update'] = conf.return_effective_value('timers update')
-
     if conf.exists('timers update'):
         rip_conf['rip']['timer_update'] = conf.return_value('timers update')
 
@@ -289,6 +185,8 @@ def generate(rip):
     if rip is None:
         return None
 
+    # As there for now are no method for rendering a template without saving it to a file
+    # we save the template and rereading it to apply it
     render(config_file, 'frr/rip.reload.frr.tmpl', rip)
     return None
 
@@ -296,50 +194,65 @@ def apply(rip):
     if rip is None:
         return None
 
-    if os.path.exists(config_file):
-        # As there for now are no method for rendering a template without saving it to a file
-        # we save the template and rereading it to apply it
-        with open(config_file, 'r') as c_file:
-            config = frr.get_configuration(daemon="ripd")
-            print('Existing config:')
-            print(config)
-            print()
-            
-            repl_config = c_file.read()
-            print('Replacement config:')
-            print(repl_config)
-          
-            new_config = frr.replace_section(config, repl_config, from_re='router rip', before_re=r'(line vty)')
-            print('New config:')
-            print(new_config)
-            print()
-            frr.mark_configuration(new_config)
-            try:
-                frr.reload_configuration(new_config, daemon='ripd')
-            except Exception:
-                print('Failed to commit config, trying to do a rollback')
-                try:
-                    frr.reload_configuration(config, daemon='ripd')
-                except Exception:
-                    print('Rollback failed')
-                    raise
-                raise
-        # call(f'vtysh -d ripd -f {config_file}')
-        # as part of debugging we do not remove the config file after its applied
-        # os.remove(config_file)
-    else:
-        print("File {0} not found".format(config_file))
+    if not os.path.exists(config_file):
+        raise OSError(f'File config_file not found')
 
+    # Save original configration prior to starting any commit actions
+    rip['original_config'] = frr.get_configuration(daemon='ripd')
+
+    # As there for now are no method for rendering a template without saving it to a file
+    # we save the template and rereading it to apply it
+    with open(config_file, 'r') as c_file:
+        repl_config = c_file.read()
+
+    # Replace configuration in the original script
+    # The before_re parameter is normally not needed, but because of a bug in the vyos.frr.replace_section function we need to add it.
+    new_config = frr.replace_section(rip['original_config'], repl_config, from_re='router rip', before_re=r'(line vty)')
+
+    print('--------- DEBUGGING ----------')
+    print(f'Existing config: \n {rip["original_config"]} \n\n')
+    print(f'Replacement config: \n {repl_config} \n\n')
+    print(f'New config: \n {new_config} \n\n')
+
+    # Frr Mark configuration will test for syntax errors and exception out if any syntax errors are detected prior to commiting
+    frr.mark_configuration(new_config)
+
+    # Commit the resulting new configuration to frr, this will render an frr.CommitError() Exception on fail
+    frr.reload_configuration(new_config, daemon='ripd')
+
+    # call(f'vtysh -d ripd -f {config_file}')
+    # as part of debugging we do not remove the config file after its applied
+    # os.remove(config_file)
 
     return None
+
+
+def rollback(rip):
+    if 'original_config' not in rip:
+        print('Applying configuration failed and there were nothing to roll back to')
+        return None
+
+    try:
+        frr.reload_configuration(rip['original_config'], daemon='ripd')
+    except frr.CommitError as e:
+        print('Failed to reapply old configuration')
+        print(e)
+
+    return None
+
 
 if __name__ == '__main__':
     try:
         c = get_config()
         verify(c)
         generate(c)
-        apply(c)
+        try:
+            apply(c)
+        except frr.CommitError as e:
+            print('Commit error, Rolling back')
+            print(e)
+            rollback(c)
+            raise
     except ConfigError as e:
         print(e)
         exit(1)
-
