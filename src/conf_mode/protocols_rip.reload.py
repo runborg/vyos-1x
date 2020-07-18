@@ -14,19 +14,15 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import os
-
 from sys import exit
 
 from vyos import ConfigError
 from vyos.config import Config
-from vyos.util import call
 from vyos.template import render_to_variable
 from vyos import frr
 from vyos import airbag
 airbag.enable()
 
-config_file = r'/tmp/ripd.frr'
 
 def get_config():
     conf = Config()
@@ -73,32 +69,20 @@ def get_config():
 
     conf.set_level(base)
 
-    # Get distribute list interface 
+    # Get distribute list interface
     for dist_iface in conf.list_nodes('distribute-list interface'):
         # TODO: The following code block is not working as expected, there are multiple format statements without {}
 
         # Set level 'distribute-list interface ethX'
         conf.set_level((str(base)) + ' distribute-list interface ' + dist_iface)
         rip_conf['rip']['distribute'].update({
-        dist_iface : {
-            'iface_access_list_in': conf.return_value('access-list in'.format(dist_iface)),
-            'iface_access_list_out': conf.return_value('access-list out'.format(dist_iface)),
-            'iface_prefix_list_in': conf.return_value('prefix-list in'.format(dist_iface)),
-            'iface_prefix_list_out': conf.return_value('prefix-list out'.format(dist_iface))
-            }
+            dist_iface: {
+                'iface_access_list_in': conf.return_value(f'access-list in {dist_iface}'),
+                'iface_access_list_out': conf.return_value(f'access-list out {dist_iface}'),
+                'iface_prefix_list_in': conf.return_value(f'prefix-list in {dist_iface}'),
+                'iface_prefix_list_out': conf.return_value(f'prefix-list out {dist_iface}')
+                }
         })
-        # Access-list in
-        if conf.exists('access-list in'.format(dist_iface)):
-            rip_conf['rip']['iface_access_list_in'] = conf.return_value('access-list in'.format(dist_iface))
-        # Access-list out
-        if conf.exists('access-list out'.format(dist_iface)):
-            rip_conf['rip']['iface_access_list_out'] = conf.return_value('access-list out'.format(dist_iface))
-        # Prefix-list in
-        if conf.exists('prefix-list in'.format(dist_iface)):
-            rip_conf['rip']['iface_prefix_list_in'] = conf.return_value('prefix-list in'.format(dist_iface))
-        # Prefix-list out
-        if conf.exists('prefix-list out'.format(dist_iface)):
-            rip_conf['rip']['iface_prefix_list_out'] = conf.return_value('prefix-list out'.format(dist_iface))
 
     conf.set_level((str(base)) + ' distribute-list')
 
@@ -136,8 +120,8 @@ def get_config():
     for net_dist in conf.list_nodes('network-distance'):
         rip_conf['rip']['net_distance'].update({
             net_dist: {
-                'access_list': conf.return_value('network-distance {0} access-list'.format(net_dist)),
-                'distance': conf.return_value('network-distance {0} distance'.format(net_dist)),
+                'access_list': conf.return_value(f'network-distance {net_dist} access-list'),
+                'distance': conf.return_value(f'network-distance {net_dist} distance'),
             }
         })
 
@@ -148,8 +132,8 @@ def get_config():
     for protocol in conf.list_nodes('redistribute'):
         rip_conf['rip']['redist'].update({
             protocol: {
-                'metric': conf.return_value('redistribute {0} metric'.format(protocol)),
-                'route_map': conf.return_value('redistribute {0} route-map'.format(protocol)),
+                'metric': conf.return_value(f'redistribute {protocol} metric'),
+                'route_map': conf.return_value(f'redistribute {protocol} route-map'),
             }
         })
 
@@ -188,33 +172,42 @@ def generate(rip):
     if rip is None:
         return None
 
+    if 'remove' in rip:
+        return None
+
     # As there for now are no method for rendering a template without saving it to a file
     # we save the template and rereading it to apply it
-    rip['new_config'] = render_to_variable('frr/rip.reload.frr.tmpl', rip)
+    rip['config'] = {'new': render_to_variable('frr/rip.reload.frr.tmpl', rip)}
     return None
 
 
 def apply(rip):
     if rip is None:
         return None
+    config = rip['config']
 
     # Save original configration prior to starting any commit actions
-    rip['original_config'] = frr.get_configuration(daemon='ripd')
+    config['original'] = frr.get_configuration(daemon='ripd')
 
     # Replace configuration in the original script
-    # The before_re parameter is normally not needed, but because of a bug in the vyos.frr.replace_section function we need to add it.
-    modified_config = frr.replace_section(rip['original_config'], rip['new_config'], from_re='router rip', before_re=r'(line vty)')
+    # The before_re parameter is normally not needed, but because of
+    # a bug in the vyos.frr.replace_section function we need to add it.
+    if 'rip_conf' in rip:
+        config['modified'] = frr.replace_section(config['original'], config['new'], from_re='router rip')
+
+    else:
+        config['modified'] = frr.remove_section(config['original'], "router rip")
 
     print('--------- DEBUGGING ----------')
-    print(f'Existing config: \n {rip["original_config"]} \n\n')
-    print(f'Replacement config: \n {rip["new_config"]} \n\n')
-    print(f'Modified config: \n {modified_config} \n\n')
+    print(f'Existing config:\n{config["original"]}\n\n')
+    print(f'Replacement config:\n{config["new"]}\n\n')
+    print(f'Modified config:\n{config["modified"]}\n\n')
 
-    # Frr Mark configuration will test for syntax errors and exception out if any syntax errors are detected prior to commiting
-    frr.mark_configuration(modified_config)
+    # Frr Mark configuration will test for syntax errors and exception out if any syntax errors are detected
+    frr.mark_configuration(config['modified'])
 
     # Commit the resulting new configuration to frr, this will render an frr.CommitError() Exception on fail
-    frr.reload_configuration(modified_config, daemon='ripd')
+    frr.reload_configuration(config['modified'], daemon='ripd')
 
     return None
 
@@ -224,11 +217,7 @@ def rollback(rip):
         print('Applying old configuration failed and there were nothing to roll back to')
         return None
     print('Trying to execute rollback operation')
-    try:
-        frr.reload_configuration(rip['original_config'], daemon='ripd')
-    except frr.CommitError as e:
-        print('Failed to reapply old configuration:')
-        print(e)
+    frr.reload_configuration(rip['config']['original'], daemon='ripd')
 
     return None
 
@@ -240,11 +229,16 @@ if __name__ == '__main__':
         generate(c)
         try:
             apply(c)
-        except frr.CommitError as e:
-            print('Commit error:')
+        except Exception as e:
+            print('Commit error, trying to rollback:')
             print(e)
-            rollback(c)
-            exit(1)
+            try:
+                rollback(c)
+            except Exception as e:
+                # We want the rollback to do e try and always fail nize, so no exceptions allowed in return
+                print('Failed to reapply old configuration:')
+                print(e)
+            raise
     except ConfigError as e:
         print(e)
         exit(1)
